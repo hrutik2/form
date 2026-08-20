@@ -1,23 +1,30 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
+from pymongo.errors import PyMongoError
 
 from app.db.mongo import db
 from app.schemas.auth import LoginRequest, LoginResponse, UserResponse
 from app.utils.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 @router.on_event("startup")
 def ensure_admin_seed():
-    if db.users.find_one({"email": "admin@example.com"}):
-        return
-    db.users.insert_one(
-        {
-            "email": "admin@example.com",
-            "name": "Portal Admin",
-            "password_hash": hash_password("admin123"),
-        }
-    )
+    try:
+        if db.users.find_one({"email": "admin@example.com"}):
+            return
+        db.users.insert_one(
+            {
+                "email": "admin@example.com",
+                "name": "Portal Admin",
+                "password_hash": hash_password("admin123"),
+            }
+        )
+    except PyMongoError as error:
+        logger.warning("Skipping admin seed during startup: %s", error)
 
 
 @router.post("/login", response_model=LoginResponse)
