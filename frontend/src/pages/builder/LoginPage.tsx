@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 export const LoginPage = () => {
@@ -28,9 +28,11 @@ export const LoginPage = () => {
         <div className="mt-6 space-y-4">
           <input
             className="w-full rounded-2xl border border-slate-200 px-4 py-3"
+            type="email"
             placeholder="Email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            required
           />
           <input
             className="w-full rounded-2xl border border-slate-200 px-4 py-3"
@@ -38,12 +40,19 @@ export const LoginPage = () => {
             placeholder="Password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            required
           />
         </div>
         {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
         <button className="mt-6 w-full rounded-2xl bg-teal-700 px-4 py-3 text-white">
           Login
         </button>
+        <p className="mt-4 text-center text-sm text-slate-600">
+          New here?{" "}
+          <Link className="font-medium text-teal-700" to="/builder/register">
+            Create an account
+          </Link>
+        </p>
       </form>
     </div>
   );

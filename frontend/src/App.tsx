@@ -6,6 +6,7 @@ import { FormEditorPage } from "./pages/builder/FormEditorPage";
 import { FormsListPage } from "./pages/builder/FormsListPage";
 import { LoginPage } from "./pages/builder/LoginPage";
 import { PublishedPage } from "./pages/builder/PublishedPage";
+import { RegisterPage } from "./pages/builder/RegisterPage";
 import { SubmissionsPage } from "./pages/builder/SubmissionsPage";
 import { PublicFormPage } from "./pages/public/PublicFormPage";
 
@@ -13,6 +14,7 @@ const App = () => (
   <Routes>
     <Route path="/" element={<Navigate to="/builder/dashboard" replace />} />
     <Route path="/builder/login" element={<LoginPage />} />
+    <Route path="/builder/register" element={<RegisterPage />} />
     <Route element={<ProtectedRoute />}>
       <Route element={<BuilderLayout />}>
         <Route path="/builder/dashboard" element={<DashboardPage />} />

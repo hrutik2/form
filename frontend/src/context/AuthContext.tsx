@@ -1,10 +1,18 @@
 import { createContext, PropsWithChildren, useContext, useEffect, useState } from "react";
-import { login as loginRequest } from "../api/forms";
+import { login as loginRequest, register as registerRequest } from "../api/forms";
+
+type AuthUser = { email: string; name: string; id?: string };
+
+const persistSession = (accessToken: string, user: AuthUser) => {
+  localStorage.setItem("builder_token", accessToken);
+  localStorage.setItem("builder_user", JSON.stringify(user));
+};
 
 interface AuthContextValue {
   token: string | null;
-  user: { email: string; name: string } | null;
+  user: AuthUser | null;
   login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -12,7 +20,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<{ email: string; name: string } | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
     const savedToken = localStorage.getItem("builder_token");
@@ -27,8 +35,14 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   const login = async (email: string, password: string) => {
     const data = await loginRequest(email, password);
-    localStorage.setItem("builder_token", data.access_token);
-    localStorage.setItem("builder_user", JSON.stringify(data.user));
+    persistSession(data.access_token, data.user);
+    setToken(data.access_token);
+    setUser(data.user);
+  };
+
+  const register = async (name: string, email: string, password: string) => {
+    const data = await registerRequest(name, email, password);
+    persistSession(data.access_token, data.user);
     setToken(data.access_token);
     setUser(data.user);
   };
@@ -41,7 +55,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   };
 
   return (
-    <AuthContext.Provider value={{ token, user, login, logout }}>
+    <AuthContext.Provider value={{ token, user, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,6 +6,11 @@ export const login = async (email: string, password: string) => {
   return data;
 };
 
+export const register = async (name: string, email: string, password: string) => {
+  const { data } = await api.post("/auth/register", { name, email, password });
+  return data;
+};
+
 export const fetchForms = async (): Promise<FormDocument[]> => {
   const { data } = await api.get("/forms");
   return data;

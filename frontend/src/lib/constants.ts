@@ -1,7 +1,7 @@
 import { FormDocument } from "../types/forms";
 
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
+  import.meta.env.VITE_API_BASE_URL ?? "https://form-y189.onrender.com/api";
 
 export const WIDTH_OPTIONS = [25, 33, 50, 66, 75, 100] as const;
 
