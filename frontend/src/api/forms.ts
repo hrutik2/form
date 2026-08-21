@@ -59,3 +59,17 @@ export const fetchSubmissions = async (formId: string): Promise<SubmissionRecord
   const { data } = await api.get(`/forms/${formId}/submissions`);
   return data;
 };
+
+export const downloadSubmissionsXlsx = async (formId: string, formName: string) => {
+  const { data } = await api.get(`/forms/${formId}/submissions/export`, {
+    responseType: "blob"
+  });
+  const url = window.URL.createObjectURL(data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${formName || "form"}_submissions.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};

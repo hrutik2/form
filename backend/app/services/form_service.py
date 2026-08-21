@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from io import BytesIO
+from zoneinfo import ZoneInfo
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -11,6 +12,8 @@ from pymongo import ReturnDocument
 from pymongo.errors import PyMongoError
 
 from app.db.mongo import db
+
+IST = ZoneInfo("Asia/Kolkata")
 
 
 def serialize(document: dict | None):
@@ -35,6 +38,10 @@ def raise_database_error(action: str, error: PyMongoError):
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail=f"Database unavailable while trying to {action}",
     ) from error
+
+
+def format_ist_datetime(value: datetime) -> str:
+    return value.astimezone(IST).strftime("%d %b %Y || %I:%M:%S %p").lower()
 
 
 def list_forms():
@@ -168,23 +175,24 @@ def export_submissions_xlsx(form_id: str):
     if not form:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
 
-    columns = [
-        field["name"]
+    fields = [
+        field
         for section in form["sections"]
         for row in section["rows"]
         for field in row["fields"]
     ]
+    columns = [(field.get("name") or field["id"], field["label"]) for field in fields]
 
     workbook = Workbook()
     sheet = workbook.active
-    headers = ["Submission ID", "Submitted At", *columns]
+    headers = ["Submitted At", *[label for _, label in columns]]
     sheet.append(headers)
     for cell in sheet[1]:
         cell.font = Font(bold=True)
 
     for item in submissions:
-        row = [str(item["_id"]), item["submitted_at"].isoformat()]
-        row.extend(item.get("data", {}).get(column, "") for column in columns)
+        row = [format_ist_datetime(item["submitted_at"])]
+        row.extend(item.get("data", {}).get(key, "") for key, _ in columns)
         sheet.append(row)
 
     sheet.freeze_panes = "A2"
