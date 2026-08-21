@@ -51,6 +51,14 @@ def format_ist_datetime(value: datetime) -> str:
     return value.astimezone(IST).strftime("%d %b %Y || %I:%M:%S %p").lower()
 
 
+def ensure_utc_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def list_forms():
     try:
         cursor = db.forms.find().sort("updated_at", -1).limit(200)
@@ -182,7 +190,8 @@ def get_published_form():
     if not serialized:
         return None
 
-    expires_at = serialized.get("expires_at")
+    expires_at = ensure_utc_datetime(serialized.get("expires_at"))
+    serialized["expires_at"] = expires_at
     if expires_at and expires_at <= datetime.now(timezone.utc):
         try:
             db.forms.update_one(
@@ -230,7 +239,7 @@ def create_submission(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Form is not published",
                 )
-            expires_at = form.get("expires_at")
+            expires_at = ensure_utc_datetime(form.get("expires_at"))
             if expires_at and expires_at <= datetime.now(timezone.utc):
                 raise HTTPException(status_code=status.HTTP_410_GONE, detail="Form expired")
             form_version = form["version"]
