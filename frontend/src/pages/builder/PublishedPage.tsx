@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchForms } from "../../api/forms";
+import { formatIstDateTime } from "../../lib/date";
 import { FormDocument } from "../../types/forms";
 
 export const PublishedPage = () => {
@@ -19,7 +20,7 @@ export const PublishedPage = () => {
         {published ? (
           <div className="mt-4 rounded-2xl bg-sand p-5">
             <p className="text-xl font-medium">{published.name}</p>
-            <p className="mt-1 text-sm text-slate-500">{published.published_at}</p>
+            <p className="mt-1 text-sm text-slate-500">{formatIstDateTime(published.published_at)}</p>
             <div className="mt-4 flex flex-wrap gap-3">
               <Link className="rounded-xl bg-teal-700 px-4 py-2 text-sm text-white" to="/form">
                 View public form

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { downloadSubmissionsXlsx, fetchForms, fetchSubmissions } from "../../api/forms";
+import { formatIstDateTime } from "../../lib/date";
 import { FormDocument, FormField, SubmissionRecord } from "../../types/forms";
 
 const getFields = (form: FormDocument | undefined): FormField[] =>
@@ -13,21 +14,6 @@ const formatValue = (value: string | string[] | undefined) => {
   }
   return value || "-";
 };
-
-const formatIstDateTime = (value: string) =>
-  new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-    timeZone: "Asia/Kolkata"
-  })
-    .format(new Date(value))
-    .replace(",", " ||")
-    .replace(/\b(am|pm)\b/i, (match) => match.toLowerCase());
 
 export const SubmissionsPage = () => {
   const [forms, setForms] = useState<FormDocument[]>([]);

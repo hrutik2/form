@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchForms } from "../../api/forms";
+import { formatIstDateTime } from "../../lib/date";
 import { FormDocument } from "../../types/forms";
 
 export const DashboardPage = () => {
@@ -44,7 +45,7 @@ export const DashboardPage = () => {
           {published ? (
             <div className="mt-4 rounded-2xl bg-sand p-4">
               <p className="font-medium">{published.name}</p>
-              <p className="text-sm text-slate-500">{published.published_at ?? "Pending timestamp"}</p>
+              <p className="text-sm text-slate-500">{formatIstDateTime(published.published_at)}</p>
             </div>
           ) : (
             <p className="mt-4 text-sm text-slate-500">No form is currently published.</p>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { deleteForm, fetchForms, publishForm } from "../../api/forms";
+import { formatIstDateTime } from "../../lib/date";
 import { FormDocument } from "../../types/forms";
 
 export const FormsListPage = () => {
@@ -31,7 +32,7 @@ export const FormsListPage = () => {
                 <p className="text-sm text-slate-500">{form.slug}</p>
               </div>
               <p className="text-sm capitalize text-slate-500">{form.status}</p>
-              <p className="text-sm text-slate-500">{form.updated_at ?? "-"}</p>
+              <p className="text-sm text-slate-500">{formatIstDateTime(form.updated_at)}</p>
               <div className="flex flex-wrap gap-2">
                 {isPublished ? (
                   <span className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-400">
