@@ -3,8 +3,7 @@ export type ToastKind = "success" | "error";
 export interface ToastMessage {
   id: number;
   kind: ToastKind;
-  title: string;
-  detail?: string;
+  detail: string;
 }
 
 type Listener = (messages: ToastMessage[]) => void;

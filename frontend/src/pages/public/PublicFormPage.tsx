@@ -39,7 +39,7 @@ export const PublicFormPage = () => {
       <FormRenderer
         form={form}
         onSubmit={async (values) => {
-          await submitPublishedForm(form._id!, values);
+          await submitPublishedForm(form._id!, form.submission_token!, values);
           setMessage("Form submitted successfully.");
         }}
       />

@@ -68,6 +68,24 @@ export interface FormDocument {
   created_at?: string;
   updated_at?: string;
   published_at?: string | null;
+  expires_at?: string | null;
+  submission_token?: string;
+}
+
+export interface ApiFormResponse {
+  detail: string;
+  form: FormDocument;
+}
+
+export interface PublishFormResponse {
+  detail: string;
+  form: FormDocument;
+  submission_token: string;
+}
+
+export interface SubmissionResponse {
+  detail: string;
+  submission: SubmissionRecord;
 }
 
 export interface SubmissionRecord {

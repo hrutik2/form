@@ -12,7 +12,7 @@ export const ToastViewport = () => {
   }
 
   return (
-    <div className="fixed left-4 top-4 z-50 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-3">
+    <div className="fixed right-4 top-4 z-50 flex w-[min(360px,calc(100vw-2rem))] flex-col gap-3">
       {messages.map((message) => (
         <div
           key={message.id}
@@ -27,11 +27,8 @@ export const ToastViewport = () => {
                   message.kind === "success" ? "text-teal-800" : "text-red-700"
                 }`}
               >
-                {message.title}
+                {message.detail}
               </p>
-              {message.detail ? (
-                <p className="mt-1 text-sm text-slate-600">{message.detail}</p>
-              ) : null}
             </div>
             <button
               className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"

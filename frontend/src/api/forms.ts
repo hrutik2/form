@@ -1,5 +1,11 @@
 import { api } from "./client";
-import { FormDocument, SubmissionRecord } from "../types/forms";
+import {
+  ApiFormResponse,
+  FormDocument,
+  PublishFormResponse,
+  SubmissionRecord,
+  SubmissionResponse
+} from "../types/forms";
 
 export const login = async (email: string, password: string) => {
   const { data } = await api.post("/auth/login", { email, password });
@@ -17,22 +23,25 @@ export const fetchForms = async (): Promise<FormDocument[]> => {
 };
 
 export const fetchForm = async (id: string): Promise<FormDocument> => {
-  const { data } = await api.get(`/forms/${id}`);
-  return data;
+  const { data } = await api.get<ApiFormResponse>(`/forms/${id}`);
+  return data.form;
 };
 
 export const saveForm = async (payload: FormDocument) => {
   if (payload._id) {
-    const { data } = await api.put(`/forms/${payload._id}`, payload);
-    return data;
+    const { data } = await api.put<ApiFormResponse>(`/forms/${payload._id}`, payload);
+    return data.form;
   }
 
-  const { data } = await api.post("/forms", payload);
-  return data;
+  const { data } = await api.post<ApiFormResponse>("/forms", payload);
+  return data.form;
 };
 
-export const publishForm = async (id: string) => {
-  const { data } = await api.post(`/forms/${id}/publish`);
+export const publishForm = async (
+  id: string,
+  payload: { enable_expiry: boolean; expiry_value: number | null; expiry_unit: "minutes" | "hours" | "days" | "weeks" | null }
+) => {
+  const { data } = await api.post<PublishFormResponse>(`/forms/${id}/publish`, payload);
   return data;
 };
 
@@ -43,15 +52,19 @@ export const deleteForm = async (id: string) => {
 
 export const fetchPublishedForm = async (): Promise<FormDocument> => {
   const { data } = await api.get("/public/forms/published");
-  
   return data;
 };
 
 export const submitPublishedForm = async (
   formId: string,
+  submissionToken: string,
   values: Record<string, string | string[]>
 ) => {
-  const { data } = await api.post(`/public/forms/${formId}/submissions`, values);
+  const { data } = await api.post<SubmissionResponse>(`/public/forms/${formId}/submissions`, values, {
+    headers: {
+      "X-Submission-Token": submissionToken
+    }
+  });
   return data;
 };
 

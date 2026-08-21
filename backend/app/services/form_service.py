@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from zoneinfo import ZoneInfo
 
@@ -12,6 +12,7 @@ from pymongo import ReturnDocument
 from pymongo.errors import PyMongoError
 
 from app.db.mongo import db
+from app.utils.security import create_form_submission_token, decode_form_submission_token
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -21,6 +22,10 @@ def serialize(document: dict | None):
         return None
     document["_id"] = str(document["_id"])
     return document
+
+
+def with_detail(detail: str, **payload):
+    return {"detail": detail, **payload}
 
 
 def parse_object_id(value: str) -> ObjectId:
@@ -68,7 +73,7 @@ def create_form(payload: dict):
     try:
         result = db.forms.insert_one(payload)
         payload["_id"] = result.inserted_id
-        return serialize(payload)
+        return with_detail("Form created successfully", form=serialize(payload))
     except PyMongoError as error:
         raise_database_error("create a form", error)
 
@@ -81,7 +86,9 @@ def update_form(form_id: str, payload: dict):
             {"$set": payload},
             return_document=ReturnDocument.AFTER,
         )
-        return serialize(updated)
+        if not updated:
+            return None
+        return with_detail("Form updated successfully", form=serialize(updated))
     except PyMongoError as error:
         raise_database_error("update a form", error)
 
@@ -98,20 +105,47 @@ def delete_form(form_id: str):
             )
 
         result = db.forms.delete_one({"_id": form["_id"]})
-        return {"deleted": result.deleted_count == 1}
+        return with_detail("Form deleted successfully", deleted=result.deleted_count == 1)
     except HTTPException:
         raise
     except PyMongoError as error:
         raise_database_error("delete a form", error)
 
 
-def publish_form(form_id: str):
+def publish_form(
+    form_id: str,
+    enable_expiry: bool = False,
+    expiry_value: int | None = None,
+    expiry_unit: str | None = None,
+):
     now = datetime.now(timezone.utc)
     target_id = parse_object_id(form_id)
+    expires_at = None
+
+    if enable_expiry:
+        if expiry_value is None or not expiry_unit:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Expiry time is required when expiry is enabled",
+            )
+        if expiry_value <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Expiry time must be greater than zero",
+            )
+
+        duration_map = {
+            "minutes": {"minutes": expiry_value},
+            "hours": {"hours": expiry_value},
+            "days": {"days": expiry_value},
+            "weeks": {"weeks": expiry_value},
+        }
+        expires_at = now + timedelta(**duration_map[expiry_unit])
+
     try:
         db.forms.update_many(
             {"status": "published", "_id": {"$ne": target_id}},
-            {"$set": {"status": "unpublished", "updated_at": now}},
+            {"$set": {"status": "unpublished", "updated_at": now, "expires_at": None}},
         )
         published = db.forms.find_one_and_update(
             {"_id": target_id},
@@ -120,29 +154,85 @@ def publish_form(form_id: str):
                     "status": "published",
                     "published_at": now,
                     "updated_at": now,
+                    "expires_at": expires_at,
                 },
                 "$inc": {"version": 1},
             },
             return_document=ReturnDocument.AFTER,
         )
-        return serialize(published)
+        if not published:
+            return None
+        submission_token = create_form_submission_token(str(published["_id"]), expires_at)
+        return with_detail(
+            "Form published successfully",
+            form=serialize(published),
+            submission_token=submission_token,
+        )
     except PyMongoError as error:
         raise_database_error("publish a form", error)
 
 
 def get_published_form():
     try:
-        return serialize(db.forms.find_one({"status": "published"}, sort=[("updated_at", -1)]))
+        form = db.forms.find_one({"status": "published"}, sort=[("updated_at", -1)])
     except PyMongoError as error:
         raise_database_error("fetch the published form", error)
 
+    serialized = serialize(form)
+    if not serialized:
+        return None
 
-def create_submission(form_id: str, payload: dict, form_version: int | None = None):
+    expires_at = serialized.get("expires_at")
+    if expires_at and expires_at <= datetime.now(timezone.utc):
+        try:
+            db.forms.update_one(
+                {"_id": parse_object_id(serialized["_id"])},
+                {"$set": {"status": "unpublished", "updated_at": datetime.now(timezone.utc)}},
+            )
+        except PyMongoError:
+            pass
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Form expired")
+
+    serialized["submission_token"] = create_form_submission_token(serialized["_id"], expires_at)
+    return serialized
+
+
+def create_submission(
+    form_id: str,
+    payload: dict,
+    submission_token: str,
+    form_version: int | None = None,
+):
     try:
+        try:
+            token_payload = decode_form_submission_token(submission_token)
+        except ValueError as error:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=str(error),
+            ) from error
+
+        if token_payload["sub"] != form_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid submission token",
+            )
+
         if form_version is None:
-            form = db.forms.find_one({"_id": parse_object_id(form_id)}, {"version": 1})
+            form = db.forms.find_one(
+                {"_id": parse_object_id(form_id)},
+                {"version": 1, "status": 1, "expires_at": 1},
+            )
             if not form:
                 return None
+            if form.get("status") != "published":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Form is not published",
+                )
+            expires_at = form.get("expires_at")
+            if expires_at and expires_at <= datetime.now(timezone.utc):
+                raise HTTPException(status_code=status.HTTP_410_GONE, detail="Form expired")
             form_version = form["version"]
 
         now = datetime.now(timezone.utc)
@@ -154,7 +244,9 @@ def create_submission(form_id: str, payload: dict, form_version: int | None = No
         }
         result = db.submissions.insert_one(submission)
         submission["_id"] = str(result.inserted_id)
-        return submission
+        return with_detail("Form submitted successfully", submission=submission)
+    except HTTPException:
+        raise
     except PyMongoError as error:
         raise_database_error("create a submission", error)
 

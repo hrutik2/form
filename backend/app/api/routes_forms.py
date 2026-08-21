@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import get_current_user
-from app.schemas.forms import FormSchema
+from app.schemas.forms import FormSchema, PublishFormRequest
 from app.services.form_service import (
     create_form,
     delete_form,
@@ -32,7 +32,7 @@ def get_form_by_id(form_id: str, _: str = Depends(get_current_user)):
     form = get_form(form_id)
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
-    return form
+    return {"detail": "Form fetched successfully", "form": form}
 
 
 @router.put("/{form_id}")
@@ -52,8 +52,20 @@ def delete_form_by_id(form_id: str, _: str = Depends(get_current_user)):
 
 
 @router.post("/{form_id}/publish")
-def publish_form_route(form_id: str, _: str = Depends(get_current_user)):
-    return publish_form(form_id)
+def publish_form_route(
+    form_id: str,
+    payload: PublishFormRequest,
+    _: str = Depends(get_current_user),
+):
+    published = publish_form(
+        form_id,
+        enable_expiry=payload.enable_expiry,
+        expiry_value=payload.expiry_value,
+        expiry_unit=payload.expiry_unit,
+    )
+    if not published:
+        raise HTTPException(status_code=404, detail="Form not found")
+    return published
 
 
 @router.get("/{form_id}/submissions")

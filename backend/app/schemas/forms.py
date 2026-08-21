@@ -50,5 +50,12 @@ class FormSchema(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     published_at: datetime | None = None
+    expires_at: datetime | None = None
 
     model_config = {"populate_by_name": True}
+
+
+class PublishFormRequest(BaseModel):
+    enable_expiry: bool = False
+    expiry_value: int | None = None
+    expiry_unit: Literal["minutes", "hours", "days", "weeks"] | None = None

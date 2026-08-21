@@ -16,20 +16,21 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => {
-    showToast({
-      kind: "success",
-      title: `${response.config.method?.toUpperCase() ?? "API"} ${response.status}`,
-      detail: response.config.url
-    });
+    const method = response.config.method?.toLowerCase();
+    const detail = response.data?.detail;
+
+    if (detail && method && method !== "get") {
+      showToast({
+        kind: "success",
+        detail
+      });
+    }
     return response;
   },
   (error) => {
     showToast({
       kind: "error",
-      title: error.response
-        ? `${error.config?.method?.toUpperCase() ?? "API"} ${error.response.status}`
-        : "Network error",
-      detail: error.response?.data?.detail ?? error.config?.url ?? "Request failed"
+      detail: error.response?.data?.detail ?? "Request failed"
     });
     return Promise.reject(error);
   }

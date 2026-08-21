@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 
 from app.services.form_service import create_submission, get_form, get_published_form
 
@@ -22,10 +22,16 @@ def fetch_form(form_id: str):
 
 
 @router.post("/{form_id}/submissions")
-def post_submission(form_id: str, payload: dict[str, str | list[str]]):
+def post_submission(
+    form_id: str,
+    payload: dict[str, str | list[str]],
+    x_submission_token: str | None = Header(default=None),
+):
     form = get_form(form_id)
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
+    if not x_submission_token:
+        raise HTTPException(status_code=401, detail="Submission token is required")
 
     required_fields = [
         field.get("name") or field["id"]
@@ -38,7 +44,7 @@ def post_submission(form_id: str, payload: dict[str, str | list[str]]):
     if missing:
         raise HTTPException(status_code=422, detail=f"Missing required fields: {missing}")
 
-    submission = create_submission(form_id, payload, form["version"])
+    submission = create_submission(form_id, payload, x_submission_token)
     if not submission:
         raise HTTPException(status_code=404, detail="Form not found")
     return submission

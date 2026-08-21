@@ -42,6 +42,7 @@ def login(payload: LoginRequest):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     return LoginResponse(
+        detail="Login successful",
         access_token=create_access_token(str(user["_id"])),
         user=UserResponse(id=str(user["_id"]), email=user["email"], name=user["name"]),
     )
@@ -78,6 +79,7 @@ def register(payload: RegisterRequest):
         ) from error
 
     return LoginResponse(
+        detail="Registration successful",
         access_token=create_access_token(str(result.inserted_id)),
         user=UserResponse(id=str(result.inserted_id), email=email, name=name),
     )
