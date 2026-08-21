@@ -3,21 +3,22 @@ import { FormDocument, FormField } from "../../types/forms";
 
 interface Props {
   form: FormDocument;
-  onSubmit: (data: Record<string, string>) => Promise<void>;
+  onSubmit: (data: Record<string, string | string[]>) => Promise<void>;
 }
 
 const FieldControl = ({ field, register }: { field: FormField; register: ReturnType<typeof useForm>["register"] }) => {
   const baseClass = "mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3";
+  const fieldName = field.name || field.id;
 
   if (field.type === "textarea") {
-    return <textarea {...register(field.name)} placeholder={field.placeholder} className={baseClass} />;
+    return <textarea {...register(fieldName)} placeholder={field.placeholder} className={baseClass} />;
   }
 
   if (field.type === "select" || field.type === "radio") {
     return (
-      <select {...register(field.name)} className={baseClass}>
+      <select {...register(fieldName)} className={baseClass}>
         <option value="">Select an option</option>
-        {field.options?.map((option) => (
+        {field.options?.filter(Boolean).map((option) => (
           <option key={option} value={option}>
             {option}
           </option>
@@ -26,9 +27,34 @@ const FieldControl = ({ field, register }: { field: FormField; register: ReturnT
     );
   }
 
+  if (field.type === "multiselect") {
+    return (
+      <select {...register(fieldName)} multiple className={baseClass}>
+        {field.options?.filter(Boolean).map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  if (field.type === "date" || field.type === "time" || field.type === "datetime") {
+    const inputType = field.type === "datetime" ? "datetime-local" : field.type;
+
+    return (
+      <input
+        {...register(fieldName)}
+        type={inputType}
+        placeholder={field.placeholder}
+        className={baseClass}
+      />
+    );
+  }
+
   return (
     <input
-      {...register(field.name)}
+      {...register(fieldName)}
       type={field.type === "number" ? "number" : field.type === "email" ? "email" : "text"}
       placeholder={field.placeholder}
       className={baseClass}
@@ -37,7 +63,7 @@ const FieldControl = ({ field, register }: { field: FormField; register: ReturnT
 };
 
 export const FormRenderer = ({ form, onSubmit }: Props) => {
-  const { register, handleSubmit } = useForm<Record<string, string>>();
+  const { register, handleSubmit } = useForm<Record<string, string | string[]>>();
   const alignmentClass =
     form.header.alignment === "left"
       ? "text-left"

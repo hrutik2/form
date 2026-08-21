@@ -36,14 +36,20 @@ export const publishForm = async (id: string) => {
   return data;
 };
 
+export const deleteForm = async (id: string) => {
+  const { data } = await api.delete(`/forms/${id}`);
+  return data;
+};
+
 export const fetchPublishedForm = async (): Promise<FormDocument> => {
   const { data } = await api.get("/public/forms/published");
+  
   return data;
 };
 
 export const submitPublishedForm = async (
   formId: string,
-  values: Record<string, string>
+  values: Record<string, string | string[]>
 ) => {
   const { data } = await api.post(`/public/forms/${formId}/submissions`, values);
   return data;

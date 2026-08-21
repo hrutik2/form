@@ -13,6 +13,7 @@ export const FormEditorPage = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState<FormDocument>(DEFAULT_FORM);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -68,13 +69,23 @@ export const FormEditorPage = () => {
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
           <button
-            className="rounded-2xl border px-4 py-3"
+            className={`rounded-2xl border px-4 py-3 ${
+              isSaving ? "cursor-not-allowed opacity-60" : ""
+            }`}
+            disabled={isSaving}
             onClick={async () => {
-              const saved = await saveForm(form);
-              navigate(`/builder/forms/${saved._id}/edit`);
+              if (isSaving) return;
+              setIsSaving(true);
+              try {
+                const saved = await saveForm(form);
+                setForm(saved);
+                navigate(`/builder/forms/${saved._id}/edit`, { replace: true });
+              } finally {
+                setIsSaving(false);
+              }
             }}
           >
-            Save Draft
+            {form._id ? "Update Draft" : isSaving ? "Saving..." : "Save Draft"}
           </button>
           <button className="rounded-2xl bg-teal-700 px-4 py-3 text-white">Preview</button>
         </div>

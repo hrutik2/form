@@ -22,13 +22,13 @@ def fetch_form(form_id: str):
 
 
 @router.post("/{form_id}/submissions")
-def post_submission(form_id: str, payload: dict[str, str]):
+def post_submission(form_id: str, payload: dict[str, str | list[str]]):
     form = get_form(form_id)
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
 
     required_fields = [
-        field["name"]
+        field.get("name") or field["id"]
         for section in form["sections"]
         for row in section["rows"]
         for field in row["fields"]

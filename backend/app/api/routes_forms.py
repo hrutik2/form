@@ -5,6 +5,7 @@ from app.api.deps import get_current_user
 from app.schemas.forms import FormSchema
 from app.services.form_service import (
     create_form,
+    delete_form,
     export_submissions_xlsx,
     get_form,
     list_forms,
@@ -36,7 +37,18 @@ def get_form_by_id(form_id: str, _: str = Depends(get_current_user)):
 
 @router.put("/{form_id}")
 def put_form(form_id: str, payload: FormSchema, _: str = Depends(get_current_user)):
-    return update_form(form_id, payload.model_dump(by_alias=True, exclude={"id"}))
+    updated = update_form(form_id, payload.model_dump(by_alias=True, exclude={"id"}))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Form not found")
+    return updated
+
+
+@router.delete("/{form_id}")
+def delete_form_by_id(form_id: str, _: str = Depends(get_current_user)):
+    deleted = delete_form(form_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Form not found")
+    return deleted
 
 
 @router.post("/{form_id}/publish")

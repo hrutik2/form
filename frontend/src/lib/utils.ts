@@ -20,7 +20,10 @@ export const createField = (
   required: false,
   width: 100,
   order: index + 1,
-  options: type === "select" || type === "radio" ? ["Option 1", "Option 2"] : undefined
+  options:
+    type === "select" || type === "radio" || type === "multiselect"
+      ? ["Option 1", "Option 2"]
+      : undefined
 });
 
 export const addFieldToSection = (

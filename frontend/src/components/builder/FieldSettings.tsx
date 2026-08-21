@@ -20,6 +20,8 @@ export const FieldSettings = ({ field, onChange }: Props) => {
   const update = (key: keyof FormField, value: string | boolean | number) => {
     onChange({ ...field, [key]: value });
   };
+  const usesOptions = field.type === "select" || field.type === "radio" || field.type === "multiselect";
+  const options = field.options?.length ? field.options : [""];
 
   return (
     <div className="rounded-3xl bg-white p-5 shadow-sm">
@@ -73,6 +75,50 @@ export const FieldSettings = ({ field, onChange }: Props) => {
             onChange={(event) => update("required", event.target.checked)}
           />
         </label>
+        {usesOptions ? (
+          <div className="rounded-2xl border border-slate-200 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-700">Options</span>
+              <button
+                type="button"
+                className="rounded-xl border px-3 py-2 text-sm"
+                onClick={() => onChange({ ...field, options: [...options, `Option ${options.length + 1}`] })}
+              >
+                Add option
+              </button>
+            </div>
+            <div className="space-y-2">
+              {options.map((option, index) => (
+                <div key={index} className="flex gap-2">
+                  <input
+                    value={option}
+                    onChange={(event) => {
+                      const nextOptions = options.map((item, itemIndex) =>
+                        itemIndex === index ? event.target.value : item
+                      );
+                      onChange({ ...field, options: nextOptions });
+                    }}
+                    className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2"
+                    placeholder={`Option ${index + 1}`}
+                  />
+                  <button
+                    type="button"
+                    className="rounded-xl border border-red-200 px-3 py-2 text-sm text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={options.length === 1}
+                    onClick={() =>
+                      onChange({
+                        ...field,
+                        options: options.filter((_, itemIndex) => itemIndex !== index)
+                      })
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

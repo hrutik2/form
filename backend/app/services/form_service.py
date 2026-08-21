@@ -77,6 +77,25 @@ def update_form(form_id: str, payload: dict):
         raise_database_error("update a form", error)
 
 
+def delete_form(form_id: str):
+    try:
+        form = db.forms.find_one({"_id": parse_object_id(form_id)}, {"status": 1})
+        if not form:
+            return None
+        if form.get("status") == "published":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Published forms cannot be deleted",
+            )
+
+        result = db.forms.delete_one({"_id": form["_id"]})
+        return {"deleted": result.deleted_count == 1}
+    except HTTPException:
+        raise
+    except PyMongoError as error:
+        raise_database_error("delete a form", error)
+
+
 def publish_form(form_id: str):
     now = datetime.now(timezone.utc)
     target_id = parse_object_id(form_id)
