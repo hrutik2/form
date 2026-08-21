@@ -190,18 +190,7 @@ def get_published_form():
     if not serialized:
         return None
 
-    expires_at = ensure_utc_datetime(serialized.get("expires_at"))
-    serialized["expires_at"] = expires_at
-    if expires_at and expires_at <= datetime.now(timezone.utc):
-        try:
-            db.forms.update_one(
-                {"_id": parse_object_id(serialized["_id"])},
-                {"$set": {"status": "unpublished", "updated_at": datetime.now(timezone.utc)}},
-            )
-        except PyMongoError:
-            pass
-        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Form expired")
-
+    serialized["expires_at"] = ensure_utc_datetime(serialized.get("expires_at"))
     return serialized
 
 
