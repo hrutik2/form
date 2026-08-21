@@ -1,6 +1,11 @@
 from fastapi import APIRouter, Header, HTTPException
 
-from app.services.form_service import create_submission, get_form, get_published_form
+from app.services.form_service import (
+    create_submission,
+    get_form,
+    get_published_form,
+    get_submission_token,
+)
 
 router = APIRouter(prefix="/api/public/forms", tags=["public"])
 
@@ -19,6 +24,14 @@ def fetch_form(form_id: str):
     if not form:
         raise HTTPException(status_code=404, detail="Form not found")
     return form
+
+
+@router.get("/{form_id}/submission-token")
+def fetch_submission_token(form_id: str):
+    token_payload = get_submission_token(form_id)
+    if not token_payload:
+        raise HTTPException(status_code=404, detail="Form not found")
+    return token_payload
 
 
 @router.post("/{form_id}/submissions")

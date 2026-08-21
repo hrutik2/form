@@ -8,7 +8,10 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("builder_token");
-  if (token) {
+  const url = config.url ?? "";
+  const isPublicRoute = url.startsWith("/public/");
+
+  if (token && !isPublicRoute) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

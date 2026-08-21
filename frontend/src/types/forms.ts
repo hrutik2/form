@@ -69,7 +69,6 @@ export interface FormDocument {
   updated_at?: string;
   published_at?: string | null;
   expires_at?: string | null;
-  submission_token?: string;
 }
 
 export interface ApiFormResponse {
@@ -86,6 +85,11 @@ export interface PublishFormResponse {
 export interface SubmissionResponse {
   detail: string;
   submission: SubmissionRecord;
+}
+
+export interface SubmissionTokenResponse {
+  detail: string;
+  submission_token: string;
 }
 
 export interface SubmissionRecord {

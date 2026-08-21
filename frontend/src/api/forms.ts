@@ -4,7 +4,8 @@ import {
   FormDocument,
   PublishFormResponse,
   SubmissionRecord,
-  SubmissionResponse
+  SubmissionResponse,
+  SubmissionTokenResponse
 } from "../types/forms";
 
 export const login = async (email: string, password: string) => {
@@ -57,12 +58,12 @@ export const fetchPublishedForm = async (): Promise<FormDocument> => {
 
 export const submitPublishedForm = async (
   formId: string,
-  submissionToken: string,
   values: Record<string, string | string[]>
 ) => {
+  const tokenResponse = await api.get<SubmissionTokenResponse>(`/public/forms/${formId}/submission-token`);
   const { data } = await api.post<SubmissionResponse>(`/public/forms/${formId}/submissions`, values, {
     headers: {
-      "X-Submission-Token": submissionToken
+      "X-Submission-Token": tokenResponse.data.submission_token
     }
   });
   return data;

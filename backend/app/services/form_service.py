@@ -202,8 +202,34 @@ def get_published_form():
             pass
         raise HTTPException(status_code=status.HTTP_410_GONE, detail="Form expired")
 
-    serialized["submission_token"] = create_form_submission_token(serialized["_id"], expires_at)
     return serialized
+
+
+def get_submission_token(form_id: str):
+    try:
+        form = db.forms.find_one(
+            {"_id": parse_object_id(form_id)},
+            {"status": 1, "expires_at": 1},
+        )
+    except PyMongoError as error:
+        raise_database_error("fetch a submission token", error)
+
+    if not form:
+        return None
+    if form.get("status") != "published":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Form is not published",
+        )
+
+    expires_at = ensure_utc_datetime(form.get("expires_at"))
+    if expires_at and expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Form expired")
+
+    return with_detail(
+        "Submission token generated successfully",
+        submission_token=create_form_submission_token(form_id, expires_at),
+    )
 
 
 def create_submission(
