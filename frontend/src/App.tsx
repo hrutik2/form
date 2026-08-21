@@ -29,6 +29,7 @@ const App = () => (
         </Route>
       </Route>
       <Route path="/form" element={<PublicFormPage />} />
+      <Route path="/form/:formId" element={<PublicFormPage />} />
     </Routes>
   </>
 );

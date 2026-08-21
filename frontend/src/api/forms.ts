@@ -3,9 +3,9 @@ import {
   ApiFormResponse,
   FormDocument,
   PublishFormResponse,
+  RecipientLink,
   SubmissionRecord,
-  SubmissionResponse,
-  SubmissionTokenResponse
+  SubmissionResponse
 } from "../types/forms";
 
 export const login = async (email: string, password: string) => {
@@ -40,7 +40,13 @@ export const saveForm = async (payload: FormDocument) => {
 
 export const publishForm = async (
   id: string,
-  payload: { enable_expiry: boolean; expiry_value: number | null; expiry_unit: "minutes" | "hours" | "days" | "weeks" | null }
+  payload: {
+    enable_expiry: boolean;
+    expiry_value: number | null;
+    expiry_unit: "minutes" | "hours" | "days" | "weeks" | null;
+    recipient_emails: string[];
+    token_reuse_enabled: boolean;
+  }
 ) => {
   const { data } = await api.post<PublishFormResponse>(`/forms/${id}/publish`, payload);
   return data;
@@ -56,14 +62,29 @@ export const fetchPublishedForm = async (): Promise<FormDocument> => {
   return data;
 };
 
+export const fetchPublicForm = async (formId: string, token?: string): Promise<FormDocument> => {
+  const { data } = await api.get(`/public/forms/${formId}`, {
+    params: token ? { token } : undefined
+  });
+  return data;
+};
+
 export const submitPublishedForm = async (
   formId: string,
+  accessToken: string | null,
   values: Record<string, string | string[]>
 ) => {
-  const tokenResponse = await api.get<SubmissionTokenResponse>(`/public/forms/${formId}/submission-token`);
+  let submissionToken: string | null = null;
+  if (accessToken) {
+    const tokenResponse = await api.get<{ detail: string; submission_token: string }>(
+      `/public/forms/${formId}/submission-token`
+    );
+    submissionToken = tokenResponse.data.submission_token;
+  }
   const { data } = await api.post<SubmissionResponse>(`/public/forms/${formId}/submissions`, values, {
+    params: accessToken ? { token: accessToken } : undefined,
     headers: {
-      "X-Submission-Token": tokenResponse.data.submission_token
+      ...(submissionToken ? { "X-Submission-Token": submissionToken } : {})
     }
   });
   return data;

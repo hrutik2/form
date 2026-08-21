@@ -22,7 +22,7 @@ export const PublishedPage = () => {
             <p className="text-xl font-medium">{published.name}</p>
             <p className="mt-1 text-sm text-slate-500">{formatIstDateTime(published.published_at)}</p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <Link className="rounded-xl bg-teal-700 px-4 py-2 text-sm text-white" to="/form">
+              <Link className="rounded-xl bg-teal-700 px-4 py-2 text-sm text-white" to={`/form/${published._id}`}>
                 View public form
               </Link>
               <Link className="rounded-xl border px-4 py-2 text-sm" to="/builder/forms">

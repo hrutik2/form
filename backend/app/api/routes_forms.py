@@ -23,8 +23,8 @@ def get_forms(_: str = Depends(get_current_user)):
 
 
 @router.post("")
-def post_form(payload: FormSchema, _: str = Depends(get_current_user)):
-    return create_form(payload.model_dump(by_alias=True, exclude={"id"}))
+def post_form(payload: FormSchema, user_id: str = Depends(get_current_user)):
+    return create_form(payload.model_dump(by_alias=True, exclude={"id"}), created_by=user_id)
 
 
 @router.get("/{form_id}")
@@ -55,13 +55,16 @@ def delete_form_by_id(form_id: str, _: str = Depends(get_current_user)):
 def publish_form_route(
     form_id: str,
     payload: PublishFormRequest,
-    _: str = Depends(get_current_user),
+    user_id: str = Depends(get_current_user),
 ):
     published = publish_form(
         form_id,
+        published_by=user_id,
         enable_expiry=payload.enable_expiry,
         expiry_value=payload.expiry_value,
         expiry_unit=payload.expiry_unit,
+        recipient_emails=payload.recipient_emails,
+        token_reuse_enabled=payload.token_reuse_enabled,
     )
     if not published:
         raise HTTPException(status_code=404, detail="Form not found")

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { deleteForm, fetchForms, publishForm } from "../../api/forms";
 import { formatIstDateTime } from "../../lib/date";
-import { FormDocument } from "../../types/forms";
+import { FormDocument, RecipientLink } from "../../types/forms";
 
 const presetOptions = [
   { label: "24 Hours", value: 24, unit: "hours" as const },
@@ -18,6 +18,10 @@ export const FormsListPage = () => {
   const [expiryValue, setExpiryValue] = useState("24");
   const [expiryUnit, setExpiryUnit] = useState<"minutes" | "hours" | "days" | "weeks">("hours");
   const [isPublishing, setIsPublishing] = useState(false);
+  const [recipientEmails, setRecipientEmails] = useState("");
+  const [allowReuse, setAllowReuse] = useState(false);
+  const [publishedLinks, setPublishedLinks] = useState<RecipientLink[]>([]);
+  const [publicLink, setPublicLink] = useState("");
 
   const load = () => fetchForms().then(setForms).catch(() => setForms([]));
 
@@ -32,6 +36,8 @@ export const FormsListPage = () => {
     setExpiryValue("24");
     setExpiryUnit("hours");
     setIsPublishing(false);
+    setRecipientEmails("");
+    setAllowReuse(false);
   };
 
   const openPublishModal = (form: FormDocument) => {
@@ -40,6 +46,8 @@ export const FormsListPage = () => {
     setExpiryMode("preset");
     setExpiryValue("24");
     setExpiryUnit("hours");
+    setRecipientEmails("");
+    setAllowReuse(false);
   };
 
   const handlePublish = async () => {
@@ -56,14 +64,23 @@ export const FormsListPage = () => {
       }
     }
 
+    const recipients = recipientEmails
+      .split(/[\n,]+/)
+      .map((email) => email.trim())
+      .filter(Boolean);
+
     setIsPublishing(true);
     try {
-      await publishForm(publishTarget._id, {
+      const response = await publishForm(publishTarget._id, {
         enable_expiry: enableExpiry,
         expiry_value: nextExpiryValue,
-        expiry_unit: nextExpiryUnit
+        expiry_unit: nextExpiryUnit,
+        recipient_emails: recipients,
+        token_reuse_enabled: allowReuse
       });
-      resetPublishState();
+      setPublishedLinks(response.recipient_links);
+      setPublicLink(response.public_link);
+      setPublishTarget(null);
       await load();
     } finally {
       setIsPublishing(false);
@@ -137,6 +154,25 @@ export const FormsListPage = () => {
           })}
         </div>
       </div>
+      {publicLink ? (
+        <div className="rounded-3xl bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Published links</h2>
+          <p className="mt-2 text-sm text-slate-500">Public link without token: {publicLink}</p>
+          {publishedLinks.length ? (
+            <div className="mt-4 space-y-3">
+              {publishedLinks.map((item) => (
+                <div key={item.email} className="rounded-2xl border border-slate-200 p-4 text-sm">
+                  <p className="font-medium text-slate-800">{item.email}</p>
+                  <p className="mt-1 break-all text-slate-600">{item.link}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Expires: {formatIstDateTime(item.token_expiry)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {publishTarget ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
           <div className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-xl">
@@ -242,6 +278,20 @@ export const FormsListPage = () => {
                     </select>
                   </div>
                 )}
+                <textarea
+                  value={recipientEmails}
+                  onChange={(event) => setRecipientEmails(event.target.value)}
+                  placeholder="Enter recipient emails, one per line or comma separated"
+                  className="min-h-28 w-full rounded-2xl border border-slate-200 px-4 py-3"
+                />
+                <label className="flex items-center gap-3 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={allowReuse}
+                    onChange={(event) => setAllowReuse(event.target.checked)}
+                  />
+                  Allow the same token to submit multiple times before expiry
+                </label>
               </div>
             ) : null}
 
@@ -255,7 +305,13 @@ export const FormsListPage = () => {
               </button>
               <button
                 type="button"
-                disabled={isPublishing || (enableExpiry && (!Number.isFinite(Number(expiryValue)) || Number(expiryValue) <= 0))}
+                disabled={
+                  isPublishing ||
+                  (enableExpiry &&
+                    (!Number.isFinite(Number(expiryValue)) ||
+                      Number(expiryValue) <= 0 ||
+                      !recipientEmails.trim()))
+                }
                 onClick={handlePublish}
                 className="rounded-2xl bg-teal-700 px-4 py-3 text-sm text-white disabled:cursor-not-allowed disabled:bg-slate-300"
               >

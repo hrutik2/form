@@ -69,6 +69,9 @@ export interface FormDocument {
   updated_at?: string;
   published_at?: string | null;
   expires_at?: string | null;
+  expiry_enabled?: boolean;
+  created_by?: string | null;
+  token_reuse_enabled?: boolean;
 }
 
 export interface ApiFormResponse {
@@ -79,7 +82,8 @@ export interface ApiFormResponse {
 export interface PublishFormResponse {
   detail: string;
   form: FormDocument;
-  submission_token: string;
+  recipient_links: RecipientLink[];
+  public_link: string;
 }
 
 export interface SubmissionResponse {
@@ -90,6 +94,14 @@ export interface SubmissionResponse {
 export interface SubmissionTokenResponse {
   detail: string;
   submission_token: string;
+}
+
+export interface RecipientLink {
+  email: string;
+  token: string;
+  link: string;
+  token_expiry?: string | null;
+  token_status: "ACTIVE" | "USED";
 }
 
 export interface SubmissionRecord {

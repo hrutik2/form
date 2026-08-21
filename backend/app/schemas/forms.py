@@ -51,6 +51,9 @@ class FormSchema(BaseModel):
     updated_at: datetime | None = None
     published_at: datetime | None = None
     expires_at: datetime | None = None
+    expiry_enabled: bool = False
+    created_by: str | None = None
+    token_reuse_enabled: bool = False
 
     model_config = {"populate_by_name": True}
 
@@ -59,3 +62,5 @@ class PublishFormRequest(BaseModel):
     enable_expiry: bool = False
     expiry_value: int | None = None
     expiry_unit: Literal["minutes", "hours", "days", "weeks"] | None = None
+    recipient_emails: list[str] = []
+    token_reuse_enabled: bool = False

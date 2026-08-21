@@ -18,6 +18,8 @@ def ensure_indexes():
     db.forms.create_index([("updated_at", DESCENDING)])
     db.forms.create_index([("status", ASCENDING), ("updated_at", DESCENDING)])
     db.submissions.create_index([("form_id", ASCENDING), ("submitted_at", DESCENDING)])
+    db.form_recipients.create_index([("form_id", ASCENDING), ("email", ASCENDING)])
+    db.form_recipients.create_index([("token", ASCENDING)], unique=True)
 
 
 def ping_database():
