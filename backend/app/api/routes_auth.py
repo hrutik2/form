@@ -29,7 +29,15 @@ def ensure_admin_seed():
 
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest):
-    user = db.users.find_one({"email": payload.email})
+    try:
+        user = db.users.find_one({"email": payload.email.lower()})
+    except PyMongoError as error:
+        logger.exception("Database error during login")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable",
+        ) from error
+
     if not user or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -42,18 +50,34 @@ def login(payload: LoginRequest):
 @router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 def register(payload: RegisterRequest):
     email = payload.email.lower()
-    existing_user = db.users.find_one({"email": email})
-    if existing_user:
-        raise HTTPException(status_code=409, detail="An account with this email already exists")
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Name is required")
 
-    user = {
-        "email": email,
-        "name": payload.name.strip(),
-        "password_hash": hash_password(payload.password),
-    }
-    result = db.users.insert_one(user)
+    try:
+        existing_user = db.users.find_one({"email": email})
+        if existing_user:
+            raise HTTPException(
+                status_code=409,
+                detail="An account with this email already exists",
+            )
+
+        user = {
+            "email": email,
+            "name": name,
+            "password_hash": hash_password(payload.password),
+        }
+        result = db.users.insert_one(user)
+    except HTTPException:
+        raise
+    except PyMongoError as error:
+        logger.exception("Database error during registration")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable",
+        ) from error
 
     return LoginResponse(
         access_token=create_access_token(str(result.inserted_id)),
-        user=UserResponse(id=str(result.inserted_id), email=email, name=user["name"]),
+        user=UserResponse(id=str(result.inserted_id), email=email, name=name),
     )

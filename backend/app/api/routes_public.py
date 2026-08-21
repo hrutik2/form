@@ -38,4 +38,7 @@ def post_submission(form_id: str, payload: dict[str, str]):
     if missing:
         raise HTTPException(status_code=422, detail=f"Missing required fields: {missing}")
 
-    return create_submission(form_id, payload)
+    submission = create_submission(form_id, payload, form["version"])
+    if not submission:
+        raise HTTPException(status_code=404, detail="Form not found")
+    return submission

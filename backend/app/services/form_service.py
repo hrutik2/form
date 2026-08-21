@@ -1,11 +1,14 @@
 from datetime import datetime, timezone
 from io import BytesIO
 
+from bson import ObjectId
+from bson.errors import InvalidId
+from fastapi import HTTPException, status
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 from pymongo import ReturnDocument
-from bson import ObjectId
+from pymongo.errors import PyMongoError
 
 from app.db.mongo import db
 
@@ -17,76 +20,135 @@ def serialize(document: dict | None):
     return document
 
 
+def parse_object_id(value: str) -> ObjectId:
+    try:
+        return ObjectId(value)
+    except InvalidId as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid form id",
+        ) from error
+
+
+def raise_database_error(action: str, error: PyMongoError):
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=f"Database unavailable while trying to {action}",
+    ) from error
+
+
 def list_forms():
-    return [serialize(item) for item in db.forms.find().sort("updated_at", -1)]
+    try:
+        cursor = db.forms.find().sort("updated_at", -1).limit(200)
+        return [serialize(item) for item in cursor]
+    except PyMongoError as error:
+        raise_database_error("list forms", error)
 
 
 def get_form(form_id: str):
-    return serialize(db.forms.find_one({"_id": ObjectId(form_id)}))
+    try:
+        return serialize(db.forms.find_one({"_id": parse_object_id(form_id)}))
+    except PyMongoError as error:
+        raise_database_error("fetch a form", error)
 
 
 def create_form(payload: dict):
     now = datetime.now(timezone.utc)
     payload["created_at"] = now
     payload["updated_at"] = now
-    result = db.forms.insert_one(payload)
-    return get_form(str(result.inserted_id))
+    try:
+        result = db.forms.insert_one(payload)
+        payload["_id"] = result.inserted_id
+        return serialize(payload)
+    except PyMongoError as error:
+        raise_database_error("create a form", error)
 
 
 def update_form(form_id: str, payload: dict):
     payload["updated_at"] = datetime.now(timezone.utc)
-    updated = db.forms.find_one_and_update(
-        {"_id": ObjectId(form_id)},
-        {"$set": payload},
-        return_document=ReturnDocument.AFTER,
-    )
-    return serialize(updated)
+    try:
+        updated = db.forms.find_one_and_update(
+            {"_id": parse_object_id(form_id)},
+            {"$set": payload},
+            return_document=ReturnDocument.AFTER,
+        )
+        return serialize(updated)
+    except PyMongoError as error:
+        raise_database_error("update a form", error)
 
 
 def publish_form(form_id: str):
     now = datetime.now(timezone.utc)
-    db.forms.update_many({"status": "published"}, {"$set": {"status": "unpublished"}})
-    published = db.forms.find_one_and_update(
-        {"_id": ObjectId(form_id)},
-        {
-            "$set": {
-                "status": "published",
-                "published_at": now,
-                "updated_at": now,
+    target_id = parse_object_id(form_id)
+    try:
+        db.forms.update_many(
+            {"status": "published", "_id": {"$ne": target_id}},
+            {"$set": {"status": "unpublished", "updated_at": now}},
+        )
+        published = db.forms.find_one_and_update(
+            {"_id": target_id},
+            {
+                "$set": {
+                    "status": "published",
+                    "published_at": now,
+                    "updated_at": now,
+                },
+                "$inc": {"version": 1},
             },
-            "$inc": {"version": 1},
-        },
-        return_document=ReturnDocument.AFTER,
-    )
-    return serialize(published)
+            return_document=ReturnDocument.AFTER,
+        )
+        return serialize(published)
+    except PyMongoError as error:
+        raise_database_error("publish a form", error)
 
 
 def get_published_form():
-    return serialize(db.forms.find_one({"status": "published"}))
+    try:
+        return serialize(db.forms.find_one({"status": "published"}, sort=[("updated_at", -1)]))
+    except PyMongoError as error:
+        raise_database_error("fetch the published form", error)
 
 
-def create_submission(form_id: str, payload: dict):
-    form = db.forms.find_one({"_id": ObjectId(form_id)})
-    now = datetime.now(timezone.utc)
-    submission = {
-        "form_id": form_id,
-        "form_version": form["version"],
-        "data": payload,
-        "submitted_at": now,
-    }
-    result = db.submissions.insert_one(submission)
-    submission["_id"] = str(result.inserted_id)
-    return submission
+def create_submission(form_id: str, payload: dict, form_version: int | None = None):
+    try:
+        if form_version is None:
+            form = db.forms.find_one({"_id": parse_object_id(form_id)}, {"version": 1})
+            if not form:
+                return None
+            form_version = form["version"]
+
+        now = datetime.now(timezone.utc)
+        submission = {
+            "form_id": form_id,
+            "form_version": form_version,
+            "data": payload,
+            "submitted_at": now,
+        }
+        result = db.submissions.insert_one(submission)
+        submission["_id"] = str(result.inserted_id)
+        return submission
+    except PyMongoError as error:
+        raise_database_error("create a submission", error)
 
 
 def list_submissions(form_id: str):
-    items = db.submissions.find({"form_id": form_id}).sort("submitted_at", -1)
-    return [serialize(item) for item in items]
+    try:
+        items = db.submissions.find({"form_id": form_id}).sort("submitted_at", -1).limit(1000)
+        return [serialize(item) for item in items]
+    except PyMongoError as error:
+        raise_database_error("list submissions", error)
 
 
 def export_submissions_xlsx(form_id: str):
-    form = db.forms.find_one({"_id": ObjectId(form_id)})
-    submissions = list(db.submissions.find({"form_id": form_id}))
+    try:
+        form = db.forms.find_one({"_id": parse_object_id(form_id)}, {"sections": 1})
+        submissions = list(db.submissions.find({"form_id": form_id}).sort("submitted_at", -1).limit(5000))
+    except PyMongoError as error:
+        raise_database_error("export submissions", error)
+
+    if not form:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
+
     columns = [
         field["name"]
         for section in form["sections"]
